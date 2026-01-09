@@ -103,45 +103,49 @@ function handleDeferredPanel(interaction, env, ctx, forceRefresh = false) {
 function handleRedemption(interaction, env, ctx) {
     ctx.waitUntil(
         (async () => {
-            let data = CACHE_DATA;
-            if (!data) data = await fetchDataFromGas(env);
+            try {
+                let data = CACHE_DATA;
+                if (!data) data = await fetchDataFromGas(env);
 
-            const stats = data.stats;
-            const users = Object.keys(stats).map(u => ({ name: u, points: stats[u] })).sort((a, b) => b.points - a.points);
+                const stats = data.stats;
+                const users = Object.keys(stats).map(u => ({ name: u, points: stats[u] })).sort((a, b) => b.points - a.points);
 
-            if (users.length < 2) return;
+                if (users.length === 0) return;
 
-            const leader = users[0];
-            const runnerUp = users[1];
-            const gap = leader.points - runnerUp.points;
+                const leader = users[0];
+                const runnerUp = users[1] || { name: "No one", points: 0 };
+                const gap = leader.points - runnerUp.points;
 
-            if (gap <= 0) return;
+                // 0ポイント差でも「清算」ログを残し、画面更新を行うために続行
+                // if (gap <= 0) return; 
 
-            await fetch(env.GAS_WEBHOOK_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'redemption',
-                    user: leader.name,
-                    points: -gap
-                })
-            });
+                await fetch(env.GAS_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'redemption',
+                        user: leader.name,
+                        points: -gap
+                    })
+                });
 
-            const newData = await fetchDataFromGas(env);
-            CACHE_DATA = newData;
-            CACHE_TIME = Date.now();
+                const newData = await fetchDataFromGas(env);
+                CACHE_DATA = newData;
+                CACHE_TIME = Date.now();
 
-            const responseData = createRootPanelPayload(newData);
-            const appId = env.APPLICATION_ID;
-            const token = interaction.token;
-            const url = `https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`;
+                const responseData = createRootPanelPayload(newData);
+                const appId = env.APPLICATION_ID;
+                const token = interaction.token;
+                const url = `https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`;
 
-            await fetch(url, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(responseData)
-            });
-
+                await fetch(url, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(responseData)
+                });
+            } catch (e) {
+                console.error("Redemption Error:", e);
+            }
         })()
     );
 
