@@ -153,7 +153,11 @@ function handleRedemption(interaction, env, ctx) {
 }
 
 async function fetchDataFromGas(env) {
-    const res = await fetch(env.GAS_WEBHOOK_URL, { method: 'GET' });
+    // GAS now returns HTML by default, so we must request JSON explicitly
+    const url = new URL(env.GAS_WEBHOOK_URL);
+    url.searchParams.append('type', 'json');
+
+    const res = await fetch(url.toString(), { method: 'GET' });
     if (!res.ok) throw new Error("GAS Fetch Failed");
     return await res.json();
 }

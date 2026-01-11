@@ -2,6 +2,25 @@
  * KajiBot (家事記録・労いBot) - GAS Backend
  */
 
+// --- 設定: ユーザー名マッピング ---
+// Discordのユーザー名を「夫」「妻」などに統一します。
+// スクリプトプロパティ 'USER_MAPPING_JSON' に {"DiscordName": "夫"} の形式で設定してください。
+
+function normalizeUser(name) {
+    try {
+        const props = PropertiesService.getScriptProperties();
+        const json = props.getProperty('USER_MAPPING_JSON');
+        if (!json) return name;
+        
+        const map = JSON.parse(json);
+        return map[name] || name;
+    } catch (e) {
+        console.error("User Mapping Error:", e);
+        return name;
+    }
+}
+
+
 // --- 1. データ受信・記録 (POST) ---
 function doPost(e) {
     try {
@@ -25,7 +44,8 @@ function recordInteraction(data) {
     checkAndAddCategoryColumn(sheet);
 
     const timestamp = new Date();
-    let user = data.member ? (data.member.nick || data.member.user.username) : data.user;
+    let rawUser = data.member ? (data.member.nick || data.member.user.username) : data.user;
+    let user = normalizeUser(rawUser);
 
     let category = "その他";
     let task = "";
@@ -83,14 +103,135 @@ function checkAndAddCategoryColumn(sheet) {
 
 // --- 2. Masterデータ & 統計 & 設定配信 (GET) ---
 function doGet(e) {
-    const payload = {
-        menu: getMasterData(),
-        stats: getStats(),
-        config: getConfigData() // Added
-    };
-    return ContentService.createTextOutput(JSON.stringify(payload))
-        .setMimeType(ContentService.MimeType.JSON);
+    // 既存のWorkerからのアクセス対応 (JSON)
+    if (e.parameter.type === 'json') {
+        const payload = {
+            menu: getMasterData(),
+            stats: getStats(),
+            config: getConfigData()
+        };
+        return ContentService.createTextOutput(JSON.stringify(payload))
+            .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Webブラウザからのアクセス (HTML)
+    return HtmlService.createTemplateFromFile('index')
+        .evaluate()
+        .setTitle('KajiBot Dashboard')
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
+
+// --- 3. Web Dashboard用 API ---
+function getDashboardData() {
+    const stats = getStats();
+    const config = getConfigData();
+    const menu = getMasterData();
+    
+    // Gap計算
+    const users = Object.keys(stats);
+    let gap = 0;
+    if (users.length >= 2) {
+        const sortedUsers = users.map(u => ({ name: u, points: stats[u] }))
+            .sort((a, b) => b.points - a.points);
+        gap = sortedUsers[0].points - sortedUsers[1].points;
+    }
+
+    // ユーザーリスト取得 (設定から)
+    let availableUsers = ["夫", "妻"];
+    try {
+        const props = PropertiesService.getScriptProperties();
+        const json = props.getProperty('USER_MAPPING_JSON');
+        if (json) {
+            const map = JSON.parse(json);
+            // マッピングのValues（表示名）を一意に取得
+            const values = Object.values(map);
+            if (values.length > 0) {
+                // 重複排除
+                availableUsers = [...new Set(values)];
+            }
+        }
+    } catch (e) {
+        console.error(e);
+    }
+
+    return {
+        stats: stats,
+        menu: menu,
+        config: config,
+        gap: gap,
+        users: availableUsers
+    };
+}
+
+function logTaskFromWeb(rawUser, taskName, points) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('log');
+    if (!sheet) return "Error: No log sheet";
+
+    checkAndAddCategoryColumn(sheet);
+    
+    // ユーザー名統一
+    const user = normalizeUser(rawUser);
+    
+    const timestamp = new Date();
+    // カテゴリとポイントを特定
+    let category = "その他";
+    
+    // Masterから情報を探す（逆引き）
+    // taskNameからポイントとカテゴリを探す実装が必要だが、
+    // ここでは簡略化のため引数pointsを優先するか、マスタを再検索する。
+    // クライアント側でカテゴリ情報も送ってもらう方が確実だが、
+    // 引数シグネチャ `(user, taskName)` という指定だったので、ここで検索する。
+    
+    // Masterデータ取得
+    const masterSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('master');
+    const masterData = masterSheet.getDataRange().getValues();
+    
+    // ポイントが未指定の場合はMasterから検索
+    if (points === undefined || points === null) {
+        points = 0;
+        for (let i = 1; i < masterData.length; i++) {
+            if (masterData[i][1] === taskName) {
+                category = masterData[i][0];
+                const p = masterData[i][2];
+                if (String(p).toUpperCase() === 'RESET') {
+                    // RESET処理は別途考える必要があるが、Webからは単純加算のみとする運用も想定。
+                    // もしWebからもRESETしたい場合は別途実装が必要。
+                    // ここでは一旦数値を扱う。
+                    points = 0; 
+                } else {
+                    points = Number(p) || 0;
+                }
+                break;
+            }
+        }
+    }
+
+    // 記録
+    sheet.appendRow([timestamp, user, category, taskName, points]);
+
+    // Discordへ通知
+    sendDiscordNotification(user, taskName, points);
+    
+    return "Success";
+}
+
+function sendDiscordNotification(user, taskName, points) {
+    const props = PropertiesService.getScriptProperties();
+    const webhookUrl = props.getProperty('DISCORD_WEBHOOK_URL');
+    if (!webhookUrl) return;
+
+    const payload = {
+        content: `🆕 **Web**: ${user} が **${taskName}** (${points}pt) を完了しました！`
+    };
+
+    UrlFetchApp.fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        payload: JSON.stringify(payload)
+    });
+}
+
 
 function getConfigData() {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('config');

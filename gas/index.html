@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KajiBot Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script> <!-- Optional Icons -->
+    <style>
+        :root {
+            /* Common Dimensions */
+            --header-height: 80px;
+            --gap-size: 20px;
+            --radius-l: 24px;
+            --radius-m: 16px;
+            --radius-s: 12px;
+        }
+
+        /* --- Themes --- */
+        /* Theme 0 (Default/Husband): Cool Navy/Blue */
+        body.theme-0 {
+            --bg-color: #1a1a2e;
+            --card-bg: #262a40;
+            --card-bg-hover: #323652;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a4b8;
+            --accent-primary: #5c7cfa;
+            /* Vivid Blue */
+            --accent-glow: rgba(92, 124, 250, 0.4);
+            --status-safe: #69db7c;
+            --status-warn: #ffc078;
+            --status-danger: #ff8787;
+        }
+
+        /* Theme 1 (Wife): Warm Terracotta/Orange */
+        body.theme-1 {
+            --bg-color: #2e1d1d;
+            --card-bg: #422a2a;
+            --card-bg-hover: #543838;
+            --text-primary: #fff0f0;
+            --text-secondary: #c2a6a6;
+            --accent-primary: #ff922b;
+            /* Vivid Orange */
+            --accent-glow: rgba(255, 146, 43, 0.4);
+            --status-safe: #69db7c;
+            --status-warn: #ffd43b;
+            --status-danger: #ff6b6b;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Noto Sans JP', sans-serif;
+            margin: 0;
+            padding: var(--gap-size);
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            overflow: hidden;
+            /* Prevent global scroll */
+            transition: background-color 0.5s ease;
+        }
+
+        /* Grid Layout for Fire HD 8 (16:10 aspect ratio) */
+        .app-grid {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            /* Fixed Left, Fluid Right */
+            grid-template-rows: 80px 1fr;
+            /* Header, Main */
+            gap: var(--gap-size);
+            height: 100%;
+        }
+
+        /* Header (Spans both columns or just right? Let's make it simple) */
+        /* Actually, let's put User Switch in "Header" position of Right Column */
+
+        /* Left Column: Status */
+        .status-column {
+            grid-row: 1 / -1;
+            grid-column: 1;
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-size);
+        }
+
+        /* Right Column: Operation */
+        .operation-column {
+            grid-row: 1 / -1;
+            grid-column: 2;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            /* User Switch, Action Area */
+            gap: var(--gap-size);
+            min-height: 0;
+            /* Important for scroll */
+        }
+
+        /* --- Components --- */
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius-l);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.5s ease, transform 0.2s;
+            box-sizing: border-box;
+        }
+
+        /* Chart Card - Adjusted to fit */
+        .chart-card {
+            flex: 1.5;
+            /* Reduce weight relative to message */
+            min-height: 0;
+            /* Important for flex child to shrink */
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 10px;
+            /* Thinner padding */
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            /* Ensure canvas doesn't force overflow */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Message Card - Adjusted */
+        .message-card {
+            flex: 1;
+            min-height: 0;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 16px;
+        }
+
+        .status-label {
+            font-size: 0.8rem;
+            /* Smaller label */
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .status-text {
+            font-size: 1.0rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .gap-value {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2.5rem;
+            /* Slightly smaller */
+            font-weight: 700;
+            color: var(--status-danger);
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            line-height: 1;
+        }
+
+        /* User Switcher (Top Right) */
+        .user-switcher {
+            display: flex;
+            background-color: var(--card-bg);
+            border-radius: var(--radius-l);
+            padding: 6px;
+            height: 64px;
+            /* Fixed height */
+            box-sizing: border-box;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+            /* Do not shrink */
+        }
+
+        .user-btn {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: var(--radius-m);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-btn.active {
+            background-color: var(--accent-primary);
+            color: #fff;
+            box-shadow: 0 4px 12px var(--accent-glow);
+            transform: scale(1.02);
+            font-size: 1.2rem;
+        }
+
+        /* Action Area */
+        .action-area {
+            flex: 1;
+            /* Take remaining space */
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow: hidden;
+            /* Contains scroll below */
+            position: relative;
+            padding: 16px !important;
+            /* Force override */
+            min-height: 0;
+            /* CSS Grid overflow fix */
+        }
+
+        .breadcrumb {
+            height: 48px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 12px;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .breadcrumb .current {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .breadcrumb button {
+            background: none;
+            border: none;
+            color: var(--accent-primary);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            /* Visible back button */
+            padding: 6px 16px;
+            border-radius: 8px;
+        }
+
+        /* Improved Grid & Buttons */
+        .grid-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            grid-auto-rows: 100px;
+            /* Fixed height for uniformity */
+            gap: 12px;
+            overflow-y: auto;
+            padding: 4px;
+            scrollbar-width: thin;
+        }
+
+        .app-btn {
+            background-color: rgba(255, 255, 255, 0.08);
+            /* Brighter glass feel */
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            /* Subtle border */
+            border-radius: var(--radius-m);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Noto Sans JP', sans-serif;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Accent border on hover/active based on theme */
+        .theme-0 .app-btn:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(92, 124, 250, 0.2);
+            background-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .theme-1 .app-btn:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(255, 146, 43, 0.2);
+            background-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .app-btn:active {
+            transform: scale(0.96);
+            background-color: var(--accent-primary);
+            color: #fff;
+        }
+
+        /* Special Category Styles */
+        .app-btn.cat-neg {
+            border-color: rgba(255, 135, 135, 0.3);
+            background-color: rgba(255, 135, 135, 0.05);
+        }
+
+        .app-btn.cat-neg:hover {
+            border-color: var(--status-danger);
+            background-color: rgba(255, 135, 135, 0.15);
+        }
+
+        .app-btn .label {
+            font-size: 1.15rem;
+            /* Larger text */
+            font-weight: 700;
+            margin-bottom: 4px;
+            z-index: 1;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .app-btn .sub {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            z-index: 1;
+            font-weight: 600;
+        }
+
+        /* Loading & Tools */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .fullscreen-fab {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body class="theme-0">
+
+    <div id="loading" class="loading-overlay">
+        <div style="text-align:center;">
+            <div style="font-size: 2rem; margin-bottom: 10px;">⏳</div>
+            <div>PROCESSING</div>
+        </div>
+    </div>
+
+    <div class="app-grid">
+        <!-- LEFT: Status Area -->
+        <div class="status-column">
+            <!-- 1. Graph -->
+            <div class="card chart-card">
+                <div class="chart-wrapper">
+                    <canvas id="pointsChart"></canvas>
+                </div>
+            </div>
+            <!-- 2. Status Message -->
+            <div class="card message-card">
+                <div class="status-label">CURRENT STATUS</div>
+                <div id="statusMessage" class="status-text">読み込み中...</div>
+                <div style="margin-top:12px;">
+                    <div class="status-label">GAP</div>
+                    <div id="gapDisplay" class="gap-value">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Operation Area -->
+        <div class="operation-column">
+            <!-- 1. User Switcher -->
+            <div class="user-switcher" id="userSwitchContainer">
+                <!-- Injected via JS -->
+            </div>
+
+            <!-- 2. Action Area (Drill-down) -->
+            <div class="card action-area" style="padding: 16px;">
+                <!-- Breadcrumb -->
+                <div class="breadcrumb" id="breadcrumb" style="display: none;">
+                    <button onclick="showCategories()">categories</button>
+                    <span>/</span>
+                    <span class="current" id="currentCategoryName">Cleaning</span>
+                </div>
+
+                <!-- Content Grid -->
+                <div id="gridContent" class="grid-container">
+                    <!-- Categories or Tasks injected here -->
+                </div>
+
+                <!-- Fullscreen FAB -->
+                <button class="fullscreen-fab" onclick="toggleFullscreen()">⛶</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentUser = "夫"; // Default
+        let usersList = ["夫", "妻"];
+        let masterData = {}; // { Category: { tasks: [] } }
+        let currentCategory = null; // null = Top level (Categories)
+
+        // Custom Sort Order
+        const CATEGORY_ORDER = ['料理', '洗濯', '掃除', '子守', 'ペット', '買い物', 'その他', '労い'];
+
+        // Init
+        window.onload = function () {
+            refreshData();
+            setInterval(refreshData, 60000); // Poll every min
+        };
+
+        function refreshData() {
+            google.script.run
+                .withSuccessHandler(onDataReceived)
+                .withFailureHandler(onError)
+                .getDashboardData();
+        }
+
+        function onDataReceived(data) {
+            console.log("Data Received:", data);
+
+            // 1. Update Users & Theme
+            if (data.users && data.users.length > 0) {
+                usersList = data.users;
+            }
+            renderUserSwitcher();
+
+            // 2. Update Master Data
+            masterData = data.menu;
+            // If we are showing categories (top level), re-render to update points/stats if needed? 
+            // For now, just re-render if current view is valid.
+            if (currentCategory === null) {
+                renderCategories();
+            } else {
+                // If in submenu, check if category still exists
+                if (masterData[currentCategory]) {
+                    renderTasks(currentCategory);
+                } else {
+                    showCategories(); // Fallback
+                }
+            }
+
+            // 3. Update Stats/Graph
+            updateChart(data.stats);
+            updateStatus(data.gap, data.config);
+        }
+
+        function onError(e) {
+            console.error(e);
+            document.getElementById('statusMessage').textContent = "Connection Lost";
+            document.getElementById('statusMessage').style.color = "var(--status-danger)";
+        }
+
+        // --- Render: User Switcher & Theme ---
+        function renderUserSwitcher() {
+            const container = document.getElementById('userSwitchContainer');
+            // Only render if changed? For simplicity, re-render is cheap here.
+            container.innerHTML = "";
+
+            usersList.forEach((user, index) => {
+                const btn = document.createElement('button');
+                btn.className = `user-btn ${user === currentUser ? 'active' : ''}`;
+                btn.textContent = user;
+                btn.onclick = () => switchUser(user, index);
+                container.appendChild(btn);
+            });
+
+            // Ensure theme matches current user
+            // Find index of current user
+            const index = usersList.indexOf(currentUser);
+            if (index !== -1) applyTheme(index);
+        }
+
+        function switchUser(user, index) {
+            currentUser = user;
+            renderUserSwitcher(); // Update active class
+            applyTheme(index);
+        }
+
+        function applyTheme(index) {
+            // index 0 -> theme-0, index 1 -> theme-1.
+            // If more users, maybe modulo?
+            const themeId = index % 2;
+            document.body.className = `theme-${themeId}`;
+        }
+
+        // --- Render: Grid Content (Drill-down) ---
+        function showCategories() {
+            currentCategory = null;
+            document.getElementById('breadcrumb').style.display = 'none';
+            renderCategories();
+        }
+
+        function renderCategories() {
+            const container = document.getElementById('gridContent');
+            container.innerHTML = "";
+
+            // Get keys
+            let categories = Object.keys(masterData);
+
+            // Sort: Priority List -> Others
+            categories.sort((a, b) => {
+                // Find index based on partial match (e.g. "🍳 料理" matches "料理")
+                const idxA = CATEGORY_ORDER.findIndex(key => a.indexOf(key) !== -1);
+                const idxB = CATEGORY_ORDER.findIndex(key => b.indexOf(key) !== -1);
+
+                // If both in list, sort by index
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                // If only A in list, A first
+                if (idxA !== -1) return -1;
+                // If only B in list, B first
+                if (idxB !== -1) return 1;
+                // Neither in list, standard string sort
+                return a.localeCompare(b);
+            });
+
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.className = 'app-btn';
+
+                // Special styling for "労い" or negative points
+                if (cat.indexOf("労い") !== -1) {
+                    btn.classList.add('cat-neg');
+                }
+
+                btn.onclick = () => {
+                    currentCategory = cat;
+                    renderTasks(cat);
+                };
+
+                // Content
+                const label = document.createElement('div');
+                label.className = 'label';
+                label.textContent = cat;
+
+                // Show task count
+                const sub = document.createElement('div');
+                sub.className = 'sub';
+                const count = masterData[cat].tasks.length;
+                sub.textContent = `${count} tasks`;
+
+                btn.appendChild(label);
+                btn.appendChild(sub);
+                container.appendChild(btn);
+            });
+        }
+
+        function renderTasks(categoryName) {
+            const container = document.getElementById('gridContent');
+            container.innerHTML = "";
+
+            // Show breadcrumb
+            document.getElementById('breadcrumb').style.display = 'flex';
+            document.getElementById('currentCategoryName').textContent = categoryName;
+
+            const tasks = masterData[categoryName].tasks;
+
+            tasks.forEach(task => {
+                const btn = document.createElement('button');
+                btn.className = 'app-btn';
+                // Direct Action
+                btn.onclick = () => logTask(task.name, task.points);
+
+                const label = document.createElement('div');
+                label.className = 'label';
+                label.textContent = task.name;
+
+                const sub = document.createElement('div');
+                sub.className = 'sub';
+                sub.textContent = `${task.points} pt`;
+
+                btn.appendChild(label);
+                btn.appendChild(sub);
+                container.appendChild(btn);
+            });
+        }
+
+        // --- Logic: Logging ---
+        function logTask(taskName, points) {
+            // Optional: beautiful modal confirmation?
+            // For now, native confirm is reliable but ugly. 
+            // Let's rely on user intent (buttons are large enough to avoid mis-tap).
+            if (!confirm(`${currentUser} として記録します。\n\n${taskName} (${points} pt)`)) return;
+
+            document.getElementById('loading').style.display = 'flex';
+
+            google.script.run
+                .withSuccessHandler(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    refreshData();
+                    // Optional: Sound effect?
+                    // Optional: Go back to categories? Or stay? -> Stay is better for repeated entry.
+                })
+                .withFailureHandler((e) => {
+                    document.getElementById('loading').style.display = 'none';
+                    alert("Error: " + e);
+                })
+                .logTaskFromWeb(currentUser, taskName, points);
+        }
+
+        // --- Logic: Chart & Status ---
+        let chartInstance = null;
+        function updateChart(stats) {
+            const ctx = document.getElementById('pointsChart').getContext('2d');
+            const labels = Object.keys(stats);
+            const values = Object.values(stats);
+
+            // Colors based on CSS variables? Hard to read from JS easily without getComputedStyle.
+            // Let's use fixed set that matches the themes broadly.
+            const colors = ['#69db7c', '#ffc078', '#5c7cfa', '#ff8787'];
+
+            if (chartInstance) {
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets[0].data = values;
+                chartInstance.update();
+            } else {
+                Chart.defaults.font.family = "'Noto Sans JP', sans-serif";
+                Chart.defaults.color = "#a0a4b8";
+
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: colors,
+                            borderWidth: 0,
+                            hoverOffset: 15
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                reverse: true, // Configured requirement
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function updateStatus(gap, config) {
+            // Gap
+            document.getElementById('gapDisplay').textContent = gap;
+
+            // Message
+            let message = "読み込み完了";
+            let color = "var(--status-safe)";
+
+            if (config && config.length > 0) {
+                const sortedConfig = config.sort((a, b) => b.threshold - a.threshold);
+                const match = sortedConfig.find(c => gap >= c.threshold);
+                if (match) {
+                    message = match.message;
+                    if (match.color) color = match.color; // Override if server sends color
+                }
+            } else {
+                // Fallback logic
+                if (gap > 300) {
+                    message = "警告！\n負担が偏っています！";
+                    color = "var(--status-danger)";
+                } else if (gap > 100) {
+                    message = "差が開いてきました。";
+                    color = "var(--status-warn)";
+                } else {
+                    message = "平和です。\nありがとうございます。";
+                    color = "var(--status-safe)";
+                }
+            }
+
+            const msgEl = document.getElementById('statusMessage');
+            // Markdown bold parser
+            msgEl.innerHTML = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+            if (!message.includes("**")) {
+                msgEl.style.color = color;
+            }
+            // Gap color
+            document.getElementById('gapDisplay').style.color = color;
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(e => console.log(e));
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+    </script>
+</body>
+
+</html>
