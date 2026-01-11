@@ -26,19 +26,19 @@ Discord と Google Spreadsheet を連携させた、家事記録 & ポイント�
 
 ### 1. Google 側の準備
 1. スプレッドシートを新規作成。
-2. スクリプトエディタを開き、`Code.gs` を貼り付け。
+2. スクリプトエディタを開き、`gas/Code.gs` を貼り付け。
 3. デプロイ（Webアプリとして導入）。
 
-詳細は [SETUP_MASTER.md](SETUP_MASTER.md) と [SETUP_CONFIG.md](SETUP_CONFIG.md) を参照してください。
+詳細は [SETUP_MASTER.md](docs/SETUP_MASTER.md) と [SETUP_CONFIG.md](docs/SETUP_CONFIG.md) を参照してください。
 
 ### 2. Cloudflare Workers の準備
 1. Cloudflare で Worker を作成。
-2. `worker.js` を貼り付け。
+2. `worker/worker.js` を貼り付け。
 3. 環境変数（Discord Token, ID, GAS URL）を設定。
 4. 公開されたURLをDiscord Developer Portalの「Interactions Endpoint URL」に設定。
 
 ### 3. コマンド登録
-`REGISTER_COMMAND.md` を参照して、Discordに `/panel` コマンドを登録してください。
+`docs/REGISTER_COMMAND.md` を参照して、Discordに `/panel` コマンドを登録してください。
 
 ## 運用
 - `/panel` コマンドでパネルを表示。
