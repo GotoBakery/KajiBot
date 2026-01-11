@@ -12,7 +12,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
         rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script> <!-- Optional Icons -->
     <style>
         :root {
@@ -304,10 +304,12 @@
             background-color: rgba(255, 255, 255, 0.12);
         }
 
-        .app-btn:active {
-            transform: scale(0.96);
+        .app-btn:active,
+        .app-btn.active-anim {
+            transform: scale(0.95);
             background-color: var(--accent-primary);
             color: #fff;
+            filter: brightness(0.9);
         }
 
         /* Special Category Styles */
@@ -373,10 +375,162 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             z-index: 100;
         }
+
+        /* --- Custom Modal --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 3000;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-box {
+            background: var(--card-bg);
+            border-radius: var(--radius-l);
+            padding: 24px;
+            width: 80%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-overlay.show .modal-box {
+            transform: scale(1);
+        }
+
+        .modal-msg {
+            font-size: 1.1rem;
+            margin-bottom: 24px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 50px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Noto Sans JP', sans-serif;
+            transition: opacity 0.2s;
+        }
+
+        .modal-btn:active {
+            opacity: 0.7;
+        }
+
+        .btn-cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+        }
+
+        .btn-ok {
+            background: var(--accent-primary);
+            color: #fff;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        /* --- Toast Notification --- */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            pointer-events: none;
+            /* Allow clicks through empty space */
+            z-index: 2000;
+        }
+
+        .toast {
+            background-color: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            padding: 12px 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            pointer-events: auto;
+            transform: translateY(150%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .toast.show {
+            transform: translateY(0);
+        }
+
+        .toast-msg {
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .toast-undo-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: var(--status-warn);
+            font-weight: 700;
+            font-size: 0.9rem;
+            padding: 6px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+
+        .toast-undo-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
     </style>
 </head>
 
 <body class="theme-0">
+    <div id="peaceful-overlay"></div>
+
+    <!-- Toast Layer -->
+    <div class="toast-container">
+        <div id="undoToast" class="toast">
+            <span id="toastMessage" class="toast-msg"></span>
+            <button class="toast-undo-btn" onclick="performUndo()">取り消す</button>
+        </div>
+    </div>
+
+    <!-- Custom Modal -->
+    <div id="customModal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="modalMessage" class="modal-msg"></div>
+            <div class="modal-actions">
+                <button class="modal-btn btn-cancel" onclick="resolveModal(false)">CANCEL</button>
+                <button class="modal-btn btn-ok" onclick="resolveModal(true)">OK</button>
+            </div>
+        </div>
+    </div>
 
     <div id="loading" class="loading-overlay">
         <div style="text-align:center;">
@@ -562,10 +716,7 @@
                     btn.classList.add('cat-neg');
                 }
 
-                btn.onclick = () => {
-                    currentCategory = cat;
-                    renderTasks(cat);
-                };
+                btn.onclick = (e) => handleCategoryClick(e.currentTarget, cat);
 
                 // Content
                 const label = document.createElement('div');
@@ -574,7 +725,7 @@
 
                 // Show task count
                 const sub = document.createElement('div');
-                sub.className = 'sub';
+                label.className = 'sub';
                 const count = masterData[cat].tasks.length;
                 sub.textContent = `${count} tasks`;
 
@@ -597,8 +748,8 @@
             tasks.forEach(task => {
                 const btn = document.createElement('button');
                 btn.className = 'app-btn';
-                // Direct Action
-                btn.onclick = () => logTask(task.name, task.points);
+                // Direct Action via wrapper for animation
+                btn.onclick = (e) => handleTaskClick(e.currentTarget, task.name, task.points);
 
                 const label = document.createElement('div');
                 label.className = 'label';
@@ -614,27 +765,130 @@
             });
         }
 
-        // --- Logic: Logging ---
-        function logTask(taskName, points) {
-            // Optional: beautiful modal confirmation?
-            // For now, native confirm is reliable but ugly. 
-            // Let's rely on user intent (buttons are large enough to avoid mis-tap).
-            if (!confirm(`${currentUser} として記録します。\n\n${taskName} (${points} pt)`)) return;
+        // --- Logic: Logging & Navigation ---
+        async function handleCategoryClick(btnElement, categoryName) {
+            // 1. Force visual feedback
+            btnElement.classList.add('active-anim');
 
+            // 2. Wait for animation (150ms)
+            await new Promise(r => setTimeout(r, 150));
+
+            // 3. Navigate
+            currentCategory = categoryName;
+            renderTasks(categoryName);
+
+            // Cleanup
+            btnElement.classList.remove('active-anim');
+        }
+
+        async function handleTaskClick(btnElement, taskName, points) {
+            // 1. Force visual feedback
+            btnElement.classList.add('active-anim');
+
+            // 2. Wait for animation (150ms)
+            await new Promise(r => setTimeout(r, 150));
+
+            // 3. Show Modal (non-blocking)
+            const confirmed = await showConfirmModal(`${currentUser} として記録します。\n\n${taskName} (${points} pt)`);
+
+            // Cleanup button state
+            btnElement.classList.remove('active-anim');
+
+            if (confirmed) {
+                logTask(taskName, points);
+            }
+        }
+
+        // Modal Logic
+        let modalResolver = null;
+        function showConfirmModal(message) {
+            const modal = document.getElementById('customModal');
+            document.getElementById('modalMessage').textContent = message;
+
+            modal.style.display = 'flex';
+            // Force reflow for transition
+            void modal.offsetWidth;
+            modal.classList.add('show');
+
+            return new Promise(resolve => {
+                modalResolver = resolve;
+            });
+        }
+
+        function resolveModal(result) {
+            const modal = document.getElementById('customModal');
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300); // Wait for transition
+
+            if (modalResolver) modalResolver(result);
+            modalResolver = null;
+        }
+
+        function logTask(taskName, points) {
+            // Already confirmed via modal logic
             document.getElementById('loading').style.display = 'flex';
 
             google.script.run
                 .withSuccessHandler(() => {
                     document.getElementById('loading').style.display = 'none';
                     refreshData();
-                    // Optional: Sound effect?
-                    // Optional: Go back to categories? Or stay? -> Stay is better for repeated entry.
+                    // Show Undo Toast (Default: with Undo button)
+                    showToast(`『${taskName}』を記録しました`, true);
                 })
                 .withFailureHandler((e) => {
                     document.getElementById('loading').style.display = 'none';
                     alert("Error: " + e);
                 })
-                .logTaskFromWeb(currentUser, taskName, points);
+                .logTaskFromWeb(currentUser, taskName);
+        }
+
+        // --- Toast & Undo Logic ---
+        let toastTimeout = null;
+
+        function showToast(message, withUndo = true, duration = 5000) {
+            const toast = document.getElementById('undoToast');
+            const undoBtn = toast.querySelector('.toast-undo-btn');
+
+            document.getElementById('toastMessage').textContent = message;
+
+            // Toggle Undo Button
+            if (withUndo) {
+                undoBtn.style.display = 'block';
+            } else {
+                undoBtn.style.display = 'none';
+            }
+
+            toast.classList.add('show');
+
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        function performUndo() {
+            // Hide toast immediately
+            const toast = document.getElementById('undoToast');
+            toast.classList.remove('show');
+            if (toastTimeout) clearTimeout(toastTimeout);
+
+            document.getElementById('loading').style.display = 'flex';
+
+            google.script.run
+                .withSuccessHandler((data) => {
+                    document.getElementById('loading').style.display = 'none';
+                    onDataReceived(data); // Refresh UI with new data
+
+                    // Show completion toast without button for 3s
+                    showToast("直近の記録を取り消しました", false, 3000);
+                })
+                .withFailureHandler((e) => {
+                    document.getElementById('loading').style.display = 'none';
+                    alert("Undo Error: " + e);
+                })
+                .undoLastLog(currentUser);
         }
 
         // --- Logic: Chart & Status ---
@@ -651,45 +905,55 @@
             if (chartInstance) {
                 chartInstance.data.labels = labels;
                 chartInstance.data.datasets[0].data = values;
-                chartInstance.update();
+                chartInstance.update(); // Chart.js default is to animate on update
             } else {
                 Chart.defaults.font.family = "'Noto Sans JP', sans-serif";
                 Chart.defaults.color = "#a0a4b8";
 
-                chartInstance = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            data: values,
-                            backgroundColor: colors,
-                            borderWidth: 0,
-                            hoverOffset: 15
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '70%',
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                reverse: true, // Configured requirement
-                                labels: {
-                                    padding: 20,
-                                    usePointStyle: true,
-                                    pointStyle: 'circle'
+                // Lazy Init for Performance
+                setTimeout(() => {
+                    chartInstance = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: values,
+                                backgroundColor: colors,
+                                borderWidth: 0,
+                                hoverOffset: 15
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '70%',
+                            animation: {
+                                duration: 1200,          // 1.2s for visibility
+                                easing: 'easeOutQuart',
+                                animateRotate: true,     // Force Rotation
+                                animateScale: false      // No Scale for performance
+                            },
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    reverse: true, // Configured requirement
+                                    labels: {
+                                        padding: 20,
+                                        usePointStyle: true,
+                                        pointStyle: 'circle'
+                                    }
                                 }
                             }
                         }
-                    }
-                });
+                    });
+                }, 1000); // 1s Delay
             }
         }
 
         function updateStatus(gap, config) {
-            // Gap
-            document.getElementById('gapDisplay').textContent = gap;
+            // Motion: Animate Gap Number
+            const gapEl = document.getElementById('gapDisplay');
+            animateValue(gapEl, parseInt(gapEl.textContent) || 0, gap, 1000);
 
             // Message
             let message = "読み込み完了";
@@ -725,6 +989,23 @@
             }
             // Gap color
             document.getElementById('gapDisplay').style.color = color;
+        }
+
+        // --- Animate Value ---
+        function animateValue(obj, start, end, duration) {
+            if (start === end) return;
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = Math.floor(progress * (end - start) + start);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                } else {
+                    obj.innerHTML = end;
+                }
+            };
+            window.requestAnimationFrame(step);
         }
 
         function toggleFullscreen() {

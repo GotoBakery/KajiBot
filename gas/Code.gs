@@ -164,7 +164,7 @@ function getDashboardData() {
     };
 }
 
-function logTaskFromWeb(rawUser, taskName, points) {
+function logTaskFromWeb(rawUser, taskName) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('log');
     if (!sheet) return "Error: No log sheet";
 
@@ -172,38 +172,28 @@ function logTaskFromWeb(rawUser, taskName, points) {
     
     // ユーザー名統一
     const user = normalizeUser(rawUser);
-    
     const timestamp = new Date();
-    // カテゴリとポイントを特定
-    let category = "その他";
     
-    // Masterから情報を探す（逆引き）
-    // taskNameからポイントとカテゴリを探す実装が必要だが、
-    // ここでは簡略化のため引数pointsを優先するか、マスタを再検索する。
-    // クライアント側でカテゴリ情報も送ってもらう方が確実だが、
-    // 引数シグネチャ `(user, taskName)` という指定だったので、ここで検索する。
-    
-    // Masterデータ取得
+    // マスタデータからカテゴリとポイントを検索
     const masterSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('master');
     const masterData = masterSheet.getDataRange().getValues();
     
-    // ポイントが未指定の場合はMasterから検索
-    if (points === undefined || points === null) {
-        points = 0;
-        for (let i = 1; i < masterData.length; i++) {
-            if (masterData[i][1] === taskName) {
-                category = masterData[i][0];
-                const p = masterData[i][2];
-                if (String(p).toUpperCase() === 'RESET') {
-                    // RESET処理は別途考える必要があるが、Webからは単純加算のみとする運用も想定。
-                    // もしWebからもRESETしたい場合は別途実装が必要。
-                    // ここでは一旦数値を扱う。
-                    points = 0; 
-                } else {
-                    points = Number(p) || 0;
-                }
-                break;
+    let category = "その他";
+    let points = 0;
+    
+    // 検索 (Header skip)
+    for (let i = 1; i < masterData.length; i++) {
+        // masterData[i][1] is TaskName
+        if (masterData[i][1] === taskName) {
+            category = masterData[i][0]; // Category
+            const p = masterData[i][2];  // Points
+            
+            if (String(p).toUpperCase() === 'RESET') {
+                points = 0; // Webからの記録ではRESET値は0扱いとする
+            } else {
+                points = Number(p) || 0;
             }
+            break;
         }
     }
 
@@ -223,6 +213,64 @@ function sendDiscordNotification(user, taskName, points) {
 
     const payload = {
         content: `🆕 **Web**: ${user} が **${taskName}** (${points}pt) を完了しました！`
+    };
+
+    UrlFetchApp.fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        payload: JSON.stringify(payload)
+    });
+}
+
+function undoLastLog(rawUser) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('log');
+    if (!sheet) return getDashboardData(); // Fail safe
+
+    // ユーザー名統一
+    const user = normalizeUser(rawUser);
+    const lastRow = sheet.getLastRow();
+    
+    // 逆順探索でユーザーの最後の記録を探す
+    // ヘッダーは1行目なのでデータは2行目から。
+    if (lastRow < 2) return getDashboardData();
+
+    // パフォーマンスのため、直近200件程度を確認すれば十分なはず
+    const searchLimit = 200; 
+    const startRow = Math.max(2, lastRow - searchLimit + 1);
+    // getRange(row, col, numRows, numCols)
+    const range = sheet.getRange(startRow, 1, lastRow - startRow + 1, 5);
+    const values = range.getValues();
+    
+    let targetRow = -1;
+    let taskName = "";
+    
+    // valuesは 0-indexed (配列)。スプレッドシート上の行番号は startRow + i
+    // 後ろから見ていく
+    for (let i = values.length - 1; i >= 0; i--) {
+        // Logのカラム: Timestamp, User, Category, Task, Points
+        // Userは Column B -> Index 1
+        if (values[i][1] === user) {
+            targetRow = startRow + i;
+            taskName = values[i][3]; // Task Description
+            break;
+        }
+    }
+    
+    if (targetRow !== -1) {
+        sheet.deleteRow(targetRow);
+        sendDiscordUndoNotification(user, taskName);
+    }
+    
+    return getDashboardData();
+}
+
+function sendDiscordUndoNotification(user, taskName) {
+    const props = PropertiesService.getScriptProperties();
+    const webhookUrl = props.getProperty('DISCORD_WEBHOOK_URL');
+    if (!webhookUrl) return;
+
+    const payload = {
+        content: `⚠️ **${user}** が直近の記録 (**${taskName}**) を取り消しました。`
     };
 
     UrlFetchApp.fetch(webhookUrl, {
