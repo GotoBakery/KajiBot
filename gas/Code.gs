@@ -47,7 +47,7 @@ function recordInteraction(data) {
     let rawUser = data.member ? (data.member.nick || data.member.user.username) : data.user;
     let user = normalizeUser(rawUser);
 
-    let category = "その他";
+    let category = "📂その他";
     let task = "";
     let points = 0;
 
@@ -124,30 +124,19 @@ function doGet(e) {
 
 // --- 3. Web Dashboard用 API ---
 function getDashboardData() {
-    const stats = getStats();
+    // 1. Config & Master (Small data, fetch separately)
     const config = getConfigData();
     const menu = getMasterData();
     
-    // Gap計算
-    const users = Object.keys(stats);
-    let gap = 0;
-    if (users.length >= 2) {
-        const sortedUsers = users.map(u => ({ name: u, points: stats[u] }))
-            .sort((a, b) => b.points - a.points);
-        gap = sortedUsers[0].points - sortedUsers[1].points;
-    }
-
-    // ユーザーリスト取得 (設定から)
+    // User Mapping
     let availableUsers = ["夫", "妻"];
     try {
         const props = PropertiesService.getScriptProperties();
         const json = props.getProperty('USER_MAPPING_JSON');
         if (json) {
             const map = JSON.parse(json);
-            // マッピングのValues（表示名）を一意に取得
             const values = Object.values(map);
             if (values.length > 0) {
-                // 重複排除
                 availableUsers = [...new Set(values)];
             }
         }
@@ -155,12 +144,80 @@ function getDashboardData() {
         console.error(e);
     }
 
+    // --- 2. Log Sheet Processing (Single Access) ---
+    const stats = {};
+    const recentLogs = [];
+    let gap = 0;
+
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('log');
+    if (sheet) {
+        // Fetch ALL data once: getDataRange().getValues()
+        // Row 1 is Header
+        const values = sheet.getDataRange().getValues();
+        
+        if (values.length > 1) {
+            const dataRows = values.slice(1); // Remove header (Index 0)
+
+            // A: Calculate Stats
+            dataRows.forEach(row => {
+                const user = row[1];
+                const points = Number(row[4]);
+                if (user && !isNaN(points)) {
+                    stats[user] = (stats[user] || 0) + points;
+                }
+            });
+
+            // B: Recent Logs (Last 3)
+            // Use reverse loop or slice from end on memory array
+            const lastLogs = dataRows.slice(-3).reverse();
+            
+            const now = new Date();
+            const timeZone = Session.getScriptTimeZone();
+            const todayStr = Utilities.formatDate(now, timeZone, 'yyyyMMdd');
+            
+            const yesterday = new Date(now);
+            yesterday.setDate(now.getDate() - 1);
+            const yesterdayStr = Utilities.formatDate(yesterday, timeZone, 'yyyyMMdd');
+
+            lastLogs.forEach(row => {
+                 // row: [Timestamp, User, Category, Task, Points]
+                 const d = new Date(row[0]);
+                 let dateStr = "";
+                 const logDateStr = Utilities.formatDate(d, timeZone, 'yyyyMMdd');
+                 
+                 // Date Formatting
+                 if (logDateStr === todayStr) {
+                    dateStr = Utilities.formatDate(d, timeZone, "HH:mm");
+                 } else if (logDateStr === yesterdayStr) {
+                    dateStr = "昨日 " + Utilities.formatDate(d, timeZone, "HH:mm");
+                 } else {
+                    dateStr = Utilities.formatDate(d, timeZone, "M/d HH:mm");
+                 }
+
+                 recentLogs.push({
+                     timestamp: dateStr,
+                     user: row[1],
+                     task: row[3]
+                 });
+            });
+        }
+    }
+
+    // Gap Calculation
+    const users = Object.keys(stats);
+    if (users.length >= 2) {
+        const sortedUsers = users.map(u => ({ name: u, points: stats[u] }))
+            .sort((a, b) => b.points - a.points);
+        gap = sortedUsers[0].points - sortedUsers[1].points;
+    }
+
     return {
         stats: stats,
         menu: menu,
         config: config,
         gap: gap,
-        users: availableUsers
+        users: availableUsers,
+        recentLogs: recentLogs
     };
 }
 
@@ -178,7 +235,7 @@ function logTaskFromWeb(rawUser, taskName) {
     const masterSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('master');
     const masterData = masterSheet.getDataRange().getValues();
     
-    let category = "その他";
+    let category = "📂その他";
     let points = 0;
     
     // 検索 (Header skip)
@@ -220,6 +277,53 @@ function sendDiscordNotification(user, taskName, points) {
         headers: { "Content-Type": "application/json" },
         payload: JSON.stringify(payload)
     });
+}
+
+function logReset(rawUser) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('log');
+    if (!sheet) return getDashboardData(); 
+
+    // 1. Calculate Current Stats (Simple Aggregation)
+    const stats = {};
+    const values = sheet.getDataRange().getValues();
+    if (values.length > 1) {
+        // Skip header
+        for (let i = 1; i < values.length; i++) {
+            const row = values[i];
+            const u = row[1];
+            const p = Number(row[4]);
+            if (u && !isNaN(p)) {
+                stats[u] = (stats[u] || 0) + p;
+            }
+        }
+    }
+
+    // 2. Identify Gap & Trailing User
+    const users = Object.keys(stats);
+    if (users.length < 2) return getDashboardData(); 
+
+    // Sort users by points ASC
+    const sorted = users.map(u => ({ name: u, points: stats[u] })).sort((a,b) => a.points - b.points);
+    
+    const trailingUser = sorted[0].name;
+    // const leadingUser = sorted[sorted.length - 1].name;
+    const gap = sorted[sorted.length - 1].points - sorted[0].points;
+
+    if (gap > 0) {
+        // 3. Add Offset Log
+        const timestamp = new Date();
+        const category = "System"; 
+        const taskName = "🎫 何でも言うこと聞く券";
+        const points = gap; // Add gap to trailing user
+
+        sheet.appendRow([timestamp, trailingUser, category, taskName, points]);
+
+        // 4. Notify Discord
+        sendDiscordNotification(trailingUser, taskName + " (清算)", points);
+    }
+
+    // 5. Return updated data
+    return getDashboardData();
 }
 
 function undoLastLog(rawUser) {
@@ -282,27 +386,37 @@ function sendDiscordUndoNotification(user, taskName) {
 
 
 function getConfigData() {
+    // Read from 'config' sheet (User request implied 'config')
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('config');
-    if (!sheet) return []; // 設定なしなら空配列
+    if (!sheet) {
+        console.warn("config sheet not found.");
+        return []; 
+    }
 
+    // getDataRange includes header
     const data = sheet.getDataRange().getValues();
-    // A:Threshold, B:Message, C:Color
     const config = [];
 
+    // Header is row 0, data starts at row 1
+    // Columns: [Limit(Threshold), Message, Color]
     for (let i = 1; i < data.length; i++) {
         const row = data[i];
-        const threshold = Number(row[0]);
-        const message = row[1];
+        const limit = Number(row[0]);
+        const text = row[1];
         const color = row[2];
 
-        if (!isNaN(threshold) && message) {
+        // Basic validation
+        if (!isNaN(limit) && text) {
             config.push({
-                threshold: threshold,
-                message: message,
+                limit: limit,
+                text: text,
                 color: color || ""
             });
         }
     }
+
+    // Sort by limit ASC
+    config.sort((a, b) => a.limit - b.limit);
 
     return config;
 }

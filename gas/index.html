@@ -119,14 +119,14 @@
 
         /* Chart Card - Adjusted to fit */
         .chart-card {
-            flex: 1.5;
-            /* Reduce weight relative to message */
-            min-height: 0;
-            /* Important for flex child to shrink */
+            /* Reduce weight but also limit max height for Fire HD 8 */
+            flex: 0 1 auto;
+            height: 35vh;
+            min-height: 200px;
             align-items: center;
             justify-content: center;
             position: relative;
-            padding: 10px;
+            padding: 8px;
             /* Thinner padding */
         }
 
@@ -134,21 +134,50 @@
             width: 100%;
             height: 100%;
             position: relative;
-            /* Ensure canvas doesn't force overflow */
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .chart-center-info {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: none;
+            /* Let clicks pass through to chart */
+            z-index: 10;
+        }
+
+        .chart-center-info .label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            opacity: 0.8;
+            margin-bottom: -4px;
+        }
+
+        .chart-center-info .value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'Montserrat', sans-serif;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
         }
 
         /* Message Card - Adjusted */
         .message-card {
             flex: 1;
             min-height: 0;
-            justify-content: center;
+            justify-content: space-between;
+            /* Distribute space */
             align-items: center;
             text-align: center;
             border: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 16px;
+            padding: 12px;
+            /* Reduced padding */
+            display: flex;
+            flex-direction: column;
         }
 
         .status-label {
@@ -313,21 +342,37 @@
         }
 
         /* Special Category Styles */
-        .app-btn.cat-neg {
-            border-color: rgba(255, 135, 135, 0.3);
-            background-color: rgba(255, 135, 135, 0.05);
+        /* Special Category Styles (Gift/Redemption) */
+        .app-btn.cat-gift {
+            border-color: rgba(255, 215, 0, 0.4);
+            /* Gold */
+            /* Gold tint bg */
+            background-color: rgba(255, 215, 0, 0.05);
+            color: #FFD700;
         }
 
-        .app-btn.cat-neg:hover {
-            border-color: var(--status-danger);
-            background-color: rgba(255, 135, 135, 0.15);
+        .app-btn.cat-gift:hover {
+            border-color: #FFD700;
+            background-color: rgba(255, 215, 0, 0.15);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+        }
+
+        /* Ensure text inside inherits color or keeps it gold */
+        .app-btn.cat-gift .label {
+            color: #FFD700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .app-btn.cat-gift .sub {
+            color: rgba(255, 215, 0, 0.8);
         }
 
         .app-btn .label {
-            font-size: 1.15rem;
-            /* Larger text */
-            font-weight: 700;
-            margin-bottom: 4px;
+            font-size: 1.4rem;
+            /* Significantly larger */
+            font-weight: 800;
+            /* Extra bold */
+            margin-bottom: 2px;
             z-index: 1;
             text-align: center;
             line-height: 1.2;
@@ -335,10 +380,12 @@
 
         .app-btn .sub {
             font-family: 'Montserrat', sans-serif;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
+            /* Slightly smaller to contrast */
             color: var(--text-secondary);
+            font-weight: 500;
+            opacity: 0.8;
             z-index: 1;
-            font-weight: 600;
         }
 
         /* Loading & Tools */
@@ -507,6 +554,94 @@
         .toast-undo-btn:hover {
             background: rgba(255, 255, 255, 0.2);
         }
+
+        /* --- History List (Timeline Style) --- */
+        #history-container {
+            margin-top: 8px;
+            /* Reduced margin */
+            width: 100%;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 8px;
+            /* Reduced padding */
+            max-height: 15vh;
+            /* Limit height */
+            overflow-y: hidden;
+            flex-shrink: 0;
+            /* Prevent shrinking too much */
+        }
+
+        #history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            padding-left: 6px;
+            position: relative;
+        }
+
+        #history-list li {
+            position: relative;
+            padding-left: 14px;
+            margin-bottom: 4px;
+            /* Tighter */
+            font-size: 0.75rem;
+            /* Smaller font (approx 12px) */
+            color: rgba(255, 255, 255, 0.9);
+            /* Brighter for visibility */
+            opacity: 1.0;
+            /* Full opacity */
+            line-height: 1.2;
+            /* Tighter line height */
+            text-align: left;
+            white-space: nowrap;
+            /* Keep it single line */
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #history-list li:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Timeline vertical line */
+        #history-list::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 0;
+            width: 2px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+        }
+
+        /* Timeline dots (pseudo) */
+        #history-list li::before {
+            content: '';
+            position: absolute;
+            left: -11px;
+            /* Adjust based on padding/line pos */
+            top: 5px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--text-secondary);
+            border: 2px solid var(--card-bg);
+            /* Cutout effect */
+        }
+
+        .history-time {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-right: 4px;
+            display: inline-block;
+            min-width: 30px;
+        }
+
+        .history-user {
+            font-weight: 600;
+            margin-right: 4px;
+        }
     </style>
 </head>
 
@@ -546,6 +681,10 @@
             <div class="card chart-card">
                 <div class="chart-wrapper">
                     <canvas id="pointsChart"></canvas>
+                    <div class="chart-center-info">
+                        <div class="label">TOTAL</div>
+                        <div class="value" id="totalPointsDisplay">0</div>
+                    </div>
                 </div>
             </div>
             <!-- 2. Status Message -->
@@ -555,6 +694,11 @@
                 <div style="margin-top:12px;">
                     <div class="status-label">GAP</div>
                     <div id="gapDisplay" class="gap-value">0</div>
+                </div>
+
+                <!-- History Section -->
+                <div id="history-container">
+                    <ul id="history-list"></ul>
                 </div>
             </div>
         </div>
@@ -609,6 +753,8 @@
                 .getDashboardData();
         }
 
+        let isInitialized = false; // Flag for initial setup
+
         function onDataReceived(data) {
             console.log("Data Received:", data);
 
@@ -618,9 +764,21 @@
             }
             renderUserSwitcher();
 
+            // Default User: Select User B (Index 1) on first load
+            if (!isInitialized) {
+                if (usersList.length >= 2) {
+                    // switchUser(User Name, Index)
+                    switchUser(usersList[1], 1);
+                }
+                isInitialized = true;
+            }
+
             // 2. Update Master Data
             masterData = data.menu;
-            // If we are showing categories (top level), re-render to update points/stats if needed? 
+
+
+
+            // If we are showing categories (top level), re-render to update points/stats if needed?  
             // For now, just re-render if current view is valid.
             if (currentCategory === null) {
                 renderCategories();
@@ -635,7 +793,24 @@
 
             // 3. Update Stats/Graph
             updateChart(data.stats);
-            updateStatus(data.gap, data.config);
+            updateStatus(data.gap, data.config, data.stats);
+
+            // 4. Update History
+            if (data.recentLogs && Array.isArray(data.recentLogs)) {
+                renderHistory(data.recentLogs);
+            }
+        }
+
+        function renderHistory(logs) {
+            const list = document.getElementById('history-list');
+            list.innerHTML = "";
+
+            logs.forEach(log => {
+                const li = document.createElement('li');
+                // Format: "12:34 User Task"
+                li.innerHTML = `<span class="history-time">${log.timestamp}</span><span class="history-user">${log.user}</span>${log.task}`;
+                list.appendChild(li);
+            });
         }
 
         function onError(e) {
@@ -711,9 +886,9 @@
                 const btn = document.createElement('button');
                 btn.className = 'app-btn';
 
-                // Special styling for "労い" or negative points
-                if (cat.indexOf("労い") !== -1) {
-                    btn.classList.add('cat-neg');
+                // Special styling for "労い" (Gift/Redemption)
+                if (cat.indexOf("労い") !== -1 || cat.indexOf("Gift") !== -1) {
+                    btn.classList.add('cat-gift');
                 }
 
                 btn.onclick = (e) => handleCategoryClick(e.currentTarget, cat);
@@ -725,9 +900,9 @@
 
                 // Show task count
                 const sub = document.createElement('div');
-                label.className = 'sub';
+                sub.className = 'sub';
                 const count = masterData[cat].tasks.length;
-                sub.textContent = `${count} tasks`;
+                sub.textContent = `${count} ${count === 1 ? 'task' : 'tasks'}`;
 
                 btn.appendChild(label);
                 btn.appendChild(sub);
@@ -748,6 +923,12 @@
             tasks.forEach(task => {
                 const btn = document.createElement('button');
                 btn.className = 'app-btn';
+
+                // Inherit special styling from category
+                if (categoryName.indexOf("労い") !== -1 || categoryName.indexOf("Gift") !== -1) {
+                    btn.classList.add('cat-gift');
+                }
+
                 // Direct Action via wrapper for animation
                 btn.onclick = (e) => handleTaskClick(e.currentTarget, task.name, task.points);
 
@@ -789,14 +970,38 @@
             await new Promise(r => setTimeout(r, 150));
 
             // 3. Show Modal (non-blocking)
-            const confirmed = await showConfirmModal(`${currentUser} として記録します。\n\n${taskName} (${points} pt)`);
+            let msg = `${currentUser} として記録します。\n\n${taskName} (${points} pt)`;
+            if (String(points) === 'RESET') {
+                msg = "負けている分の差分を加算して\n清算（同点に）しますか？";
+            }
+
+            const confirmed = await showConfirmModal(msg);
 
             // Cleanup button state
             btnElement.classList.remove('active-anim');
 
             if (confirmed) {
-                logTask(taskName, points);
+                if (String(points) === 'RESET') {
+                    performReset();
+                } else {
+                    logTask(taskName, points);
+                }
             }
+        }
+
+        function performReset() {
+            document.getElementById('loading').style.display = 'flex';
+            google.script.run
+                .withSuccessHandler((data) => {
+                    document.getElementById('loading').style.display = 'none';
+                    onDataReceived(data);
+                    showToast("清算が完了しました", false);
+                })
+                .withFailureHandler((e) => {
+                    document.getElementById('loading').style.display = 'none';
+                    alert("Error: " + e);
+                })
+                .logReset(currentUser);
         }
 
         // Modal Logic
@@ -893,32 +1098,53 @@
 
         // --- Logic: Chart & Status ---
         let chartInstance = null;
+
+        // Define unified colors: [Husband(Blue), Wife(Orange)]
+        // Using var(--accent-primary) equivalent values for consistency
+        const APP_COLORS = ['#5c7cfa', '#ff922b'];
+
         function updateChart(stats) {
             const ctx = document.getElementById('pointsChart').getContext('2d');
-            const labels = Object.keys(stats);
-            const values = Object.values(stats);
 
-            // Colors based on CSS variables? Hard to read from JS easily without getComputedStyle.
-            // Let's use fixed set that matches the themes broadly.
-            const colors = ['#69db7c', '#ffc078', '#5c7cfa', '#ff8787'];
+            // Use usersList to ensure consistent order: [UserA, UserB]
+            const labels = usersList;
+            const finalValues = usersList.map(u => stats[u] || 0);
+
+            // Chart.js draws clockwise starting from top.
+            // 1st segment (0-X deg) is Right side of donut.
+            // 2nd segment (X-360 deg) is Left side of donut.
+            // UI Layout: Left=UserA, Right=UserB.
+            // To make UserB appear on Right and UserA on Left:
+            // We need to pass [UserB, UserA] to Chart.js
+
+            // Reverse for visual matching
+            const chartValues = [finalValues[1], finalValues[0]];
+            const chartColors = [APP_COLORS[1], APP_COLORS[0]];
+
+            // Calculate Total
+            const total = finalValues.reduce((sum, v) => sum + v, 0);
+            const totalEl = document.getElementById('totalPointsDisplay');
+            animateValue(totalEl, parseInt(totalEl.textContent) || 0, total, 1000);
 
             if (chartInstance) {
-                chartInstance.data.labels = labels;
-                chartInstance.data.datasets[0].data = values;
-                chartInstance.update(); // Chart.js default is to animate on update
+                // We don't touch labels much because donut tooltips will just show value
+                // But for correctness let's reverse labels too if we want tooltips to match
+                chartInstance.data.labels = [labels[1], labels[0]];
+                chartInstance.data.datasets[0].data = chartValues;
+                chartInstance.data.datasets[0].backgroundColor = chartColors;
+                chartInstance.update();
             } else {
                 Chart.defaults.font.family = "'Noto Sans JP', sans-serif";
                 Chart.defaults.color = "#a0a4b8";
 
-                // Lazy Init for Performance
                 setTimeout(() => {
                     chartInstance = new Chart(ctx, {
                         type: 'doughnut',
                         data: {
-                            labels: labels,
+                            labels: [labels[1], labels[0]],
                             datasets: [{
-                                data: values,
-                                backgroundColor: colors,
+                                data: chartValues,
+                                backgroundColor: chartColors,
                                 borderWidth: 0,
                                 hoverOffset: 15
                             }]
@@ -928,67 +1154,84 @@
                             maintainAspectRatio: false,
                             cutout: '70%',
                             animation: {
-                                duration: 1200,          // 1.2s for visibility
+                                duration: 1200,
                                 easing: 'easeOutQuart',
-                                animateRotate: true,     // Force Rotation
-                                animateScale: false      // No Scale for performance
+                                animateRotate: true,
+                                animateScale: false
                             },
                             plugins: {
                                 legend: {
-                                    position: 'bottom',
-                                    reverse: true, // Configured requirement
-                                    labels: {
-                                        padding: 20,
-                                        usePointStyle: true,
-                                        pointStyle: 'circle'
-                                    }
+                                    // Hide legend as we have explicit UI
+                                    display: false
                                 }
                             }
                         }
                     });
-                }, 1000); // 1s Delay
+                }, 1000);
             }
         }
 
-        function updateStatus(gap, config) {
-            // Motion: Animate Gap Number
+        function updateStatus(gap, config, stats) {
             const gapEl = document.getElementById('gapDisplay');
             animateValue(gapEl, parseInt(gapEl.textContent) || 0, gap, 1000);
 
-            // Message
-            let message = "読み込み完了";
-            let color = "var(--status-safe)";
+            // 1. Message Logic (Server Config)
+            let message = "Now Loading...";
+            let msgColor = "var(--status-safe)";
 
             if (config && config.length > 0) {
-                const sortedConfig = config.sort((a, b) => b.threshold - a.threshold);
-                const match = sortedConfig.find(c => gap >= c.threshold);
+                // Find first match where gap is within limit
+                // Config is sorted ASC by limit: [{limit: 99, ...}, {limit: 199, ...}]
+                const match = config.find(c => gap <= c.limit);
+
                 if (match) {
-                    message = match.message;
-                    if (match.color) color = match.color; // Override if server sends color
+                    message = match.text;
+                    if (match.color) msgColor = match.color;
+                } else {
+                    // Fallback if gap exceeds all limits (use the last one/highest)
+                    const last = config[config.length - 1];
+                    message = last.text;
+                    if (last.color) msgColor = last.color;
                 }
             } else {
-                // Fallback logic
+                // Default Fallback if no config
                 if (gap > 300) {
                     message = "警告！\n負担が偏っています！";
-                    color = "var(--status-danger)";
+                    msgColor = "var(--status-danger)";
                 } else if (gap > 100) {
                     message = "差が開いてきました。";
-                    color = "var(--status-warn)";
+                    msgColor = "var(--status-warn)";
                 } else {
                     message = "平和です。\nありがとうございます。";
-                    color = "var(--status-safe)";
+                    msgColor = "var(--status-safe)";
                 }
             }
 
             const msgEl = document.getElementById('statusMessage');
-            // Markdown bold parser
             msgEl.innerHTML = message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
             if (!message.includes("**")) {
-                msgEl.style.color = color;
+                msgEl.style.color = msgColor;
             }
-            // Gap color
-            document.getElementById('gapDisplay').style.color = color;
+
+            // 2. Gap Color Logic
+            // Determine leader based on ordered usersList
+            let gapColor = "#ffffff";
+            if (stats && usersList.length >= 2) {
+                const u1 = usersList[0];
+                const u2 = usersList[1];
+                const p1 = stats[u1] || 0;
+                const p2 = stats[u2] || 0;
+
+                if (Math.abs(p1 - p2) > 20) {
+                    // If User 1 leads -> Color 0 (Blue)
+                    // If User 2 leads -> Color 1 (Orange)
+                    if (p1 > p2) gapColor = APP_COLORS[0];
+                    else gapColor = APP_COLORS[1];
+                } else {
+                    gapColor = "var(--status-safe)";
+                }
+            }
+            gapEl.style.color = gapColor;
         }
 
         // --- Animate Value ---
