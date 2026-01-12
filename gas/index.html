@@ -642,11 +642,80 @@
             font-weight: 600;
             margin-right: 4px;
         }
+
+        /* --- Screensaver --- */
+        #screensaver {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            z-index: 9999;
+            display: none;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            pointer-events: auto;
+            /* Catch clicks to exit */
+        }
+
+        #screensaver.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Simplified for img tag usage */
+        #ss-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 1;
+            /* Default opacity */
+            transition: opacity 1.0s ease-in-out;
+            /* Add transition */
+        }
+
+        .ss-clock {
+            position: absolute;
+            bottom: 30px;
+            right: 40px;
+            text-align: right;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+            font-family: 'Montserrat', sans-serif;
+            pointer-events: none;
+        }
+
+        .ss-time {
+            font-size: 4rem;
+            font-weight: 200;
+            line-height: 1;
+        }
+
+        .ss-date {
+            font-size: 1.2rem;
+            font-weight: 400;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
     </style>
 </head>
 
 <body class="theme-0">
     <div id="peaceful-overlay"></div>
+
+    <!-- Screensaver -->
+    <div id="screensaver">
+        <img id="ss-image" src="" alt="Screensaver" />
+
+        <div class="ss-clock">
+            <div id="ssTime" class="ss-time">00:00</div>
+            <div id="ssDate" class="ss-date">MON, JAN 1</div>
+        </div>
+    </div>
 
     <!-- Toast Layer -->
     <div class="toast-container">
@@ -731,6 +800,71 @@
     </div>
 
     <script>
+        // --- グローバル変数定義（ここ重要！） ---
+        // スクリーンセーバー用の変数は必ず関数の外で宣言する
+        let slideInterval = null;     // タイマーID保存用
+        let currentSlideIndex = 0;    // 現在表示している画像の番号
+        let ssTimer = null;           // 無操作タイマーID
+        let isScreensaverActive = false; // 起動中フラグ
+
+        // Fire HD 8 (1280x800) 
+        const slideImages = [
+            // 🦊 --- 野生動物（森の住人たち） ---
+            "https://images.unsplash.com/photo-1516934024742-b461fba47600?auto=format&fit=crop&w=1280&h=800&q=80", // 雪の中のキツネ
+            "https://images.unsplash.com/photo-1484406566174-9da000dea64d?auto=format&fit=crop&w=1280&h=800&q=80", // 森の鹿（雄鹿）
+            "https://images.unsplash.com/photo-1452857297128-d9c29adba80b?auto=format&fit=crop&w=1280&h=800&q=80", // リス（食事中）
+            "https://images.unsplash.com/photo-1559214369-a6b1d7919865?auto=format&fit=crop&w=1280&h=800&q=80", // 野うさぎ
+            "https://images.unsplash.com/photo-1564349683136-77e08dba1ef7?auto=format&fit=crop&w=1280&h=800&q=80", // パンダ
+            "https://images.unsplash.com/photo-1505628346881-b72b27e84530?auto=format&fit=crop&w=1280&h=800&q=80", // ハリネズミ
+            "https://images.unsplash.com/photo-1425082661705-1834bfd09dca?auto=format&fit=crop&w=1280&h=800&q=80", // ハムスター
+            "https://images.unsplash.com/photo-1535268620699-00c64547120c?auto=format&fit=crop&w=1280&h=800&q=80", // シロクマ
+            "https://images.unsplash.com/photo-1589656966895-2f33e7653819?auto=format&fit=crop&w=1280&h=800&q=80", // コアラ
+            "https://images.unsplash.com/photo-1456926631375-92c8ce872def?auto=format&fit=crop&w=1280&h=800&q=80", // 野生のチーター（遠景）
+            "https://images.unsplash.com/photo-1474511320723-9a56873867b5?auto=format&fit=crop&w=1280&h=800&q=80", // アライグマ
+            "https://images.unsplash.com/photo-1575550959106-5a7defe28b56?auto=format&fit=crop&w=1280&h=800&q=80", // キリン
+            "https://images.unsplash.com/photo-1541336528065-8f1fdc43583d?auto=format&fit=crop&w=1280&h=800&q=80", // ゾウ
+
+            // 🦉 --- 鳥たち（色鮮やか・荘厳） ---
+            "https://images.unsplash.com/photo-1510729562-797c2765d1d6?auto=format&fit=crop&w=1280&h=800&q=80", // フクロウ（ドアップ）
+            "https://images.unsplash.com/photo-1445404590072-cdbcd6ca7600?auto=format&fit=crop&w=1280&h=800&q=80", // 小鳥（ロビン）
+            "https://images.unsplash.com/photo-1544607779-72535b672800?auto=format&fit=crop&w=1280&h=800&q=80", // カワセミ（青色が綺麗）
+            "https://images.unsplash.com/photo-1552728089-57bdde30ebd1?auto=format&fit=crop&w=1280&h=800&q=80", // オウム（極彩色）
+            "https://images.unsplash.com/photo-1555169062-013468b47731?auto=format&fit=crop&w=1280&h=800&q=80", // 色鮮やかな小鳥
+            "https://images.unsplash.com/photo-1549608276-5786777e6587?auto=format&fit=crop&w=1280&h=800&q=80", // 白鳥
+            "https://images.unsplash.com/photo-1480044965905-02098d419e96?auto=format&fit=crop&w=1280&h=800&q=80", // 雀（雪の中）
+            "https://images.unsplash.com/photo-1610967677579-24757c320d3f?auto=format&fit=crop&w=1280&h=800&q=80", // 鷲（イーグル）
+            "https://images.unsplash.com/photo-1535083783855-76ae62b2914e?auto=format&fit=crop&w=1280&h=800&q=80", // ペンギン
+
+            // 🌿 --- 絶景・自然（目の保養） ---
+            "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1280&h=800&q=80", // 山と湖（リフレクション）
+            "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=1280&h=800&q=80", // 緑の平原
+            "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1280&h=800&q=80", // 朝霧の森
+            "https://images.unsplash.com/photo-1501854140884-074cf27f606b?auto=format&fit=crop&w=1280&h=800&q=80", // ビーチと山
+            "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1280&h=800&q=80", // 森の日差し
+            "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1280&h=800&q=80", // 湖畔
+            "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1280&h=800&q=80", // 雄大な山道
+            "https://images.unsplash.com/photo-1506765515384-028b60a970df?auto=format&fit=crop&w=1280&h=800&q=80", // 秋の紅葉
+            "https://images.unsplash.com/photo-1532274402911-5a369e4c4bb5?auto=format&fit=crop&w=1280&h=800&q=80", // 滝
+            "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1280&h=800&q=80", // 夜空・星
+            "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1280&h=800&q=80", // 雲海
+
+            // 😺 --- 猫ちゃん（風景に溶け込むもの） ---
+            "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=1280&h=800&q=80", // 黒猫
+            "https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?auto=format&fit=crop&w=1280&h=800&q=80", // 香箱座り
+            "https://images.unsplash.com/photo-1519052537078-e6302a4968ef?auto=format&fit=crop&w=1280&h=800&q=80", // 草原の猫
+            "https://images.unsplash.com/photo-1495360019602-e001922271aa?auto=format&fit=crop&w=1280&h=800&q=80", // 子猫
+            "https://images.unsplash.com/photo-1573865526739-10659fec78a5?auto=format&fit=crop&w=1280&h=800&q=80", // 見つめる猫
+
+            // 🍰 --- ご褒美（少しだけ残す） ---
+            "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&w=1280&h=800&q=80", // カフェラテ
+            "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=1280&h=800&q=80", // ケーキ
+            "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=1280&h=800&q=80", // コーヒー豆
+            "https://images.unsplash.com/photo-1516054575922-f0b8eeadec1a?auto=format&fit=crop&w=1280&h=800&q=80", // ケーキ2
+            "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1280&h=800&q=80", // 落ち着いた家具
+            "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1280&h=800&q=80"  // リビング
+        ];
+        // ------------------------------------
+
         // State
         let currentUser = "夫"; // Default
         let usersList = ["夫", "妻"];
@@ -744,7 +878,138 @@
         window.onload = function () {
             refreshData();
             setInterval(refreshData, 60000); // Poll every min
+            initScreensaver(); // Init Screensaver
         };
+
+        // --- Screensaver Logic ---
+        const SS_TIMEOUT = 300000; // 5 minutes = 300,000 ms
+        const SLIDE_INTERVAL = 10000; // 10 seconds
+        // Global variables moved to top
+        let activeLayer = 1; // 1 or 2 (Not used in simplified img version but keeping for safety if referenced)
+
+        // (slideImages moved to top)
+
+        function initScreensaver() {
+            resetIdleTimer();
+            shuffleArray(slideImages); // Shuffle on init
+
+            // Events to reset timer
+            const events = ['mousemove', 'mousedown', 'click', 'touchstart', 'keydown'];
+            events.forEach(evt => {
+                document.addEventListener(evt, handleUserActivity);
+            });
+
+            // Tap on screensaver to exit
+            document.getElementById('screensaver').addEventListener('click', stopScreensaver);
+
+            // Start clock update
+            setInterval(updateScreensaverClock, 1000);
+        }
+
+        function handleUserActivity() {
+            if (isScreensaverActive) {
+                // If active, let the explicit click handler on screensaver handle the "wake up".
+                return;
+            }
+            resetIdleTimer();
+        }
+
+        function resetIdleTimer() {
+            if (isScreensaverActive) return;
+
+            clearTimeout(ssTimer);
+            ssTimer = setTimeout(startScreensaver, SS_TIMEOUT);
+        }
+
+        function startScreensaver() {
+            if (isScreensaverActive) return; // Prevent double start
+            isScreensaverActive = true;
+            console.log("Screensaver started");
+
+            const ssEl = document.getElementById('screensaver');
+            ssEl.style.display = 'block';
+
+            // Fade within CSS wrapper if using class 'active'
+            setTimeout(() => ssEl.classList.add('active'), 10);
+
+            // Initial Image
+            updateSlideImage();
+
+            // Start Interval
+            if (slideInterval) clearInterval(slideInterval);
+            slideInterval = setInterval(() => {
+                console.log("Switching slide...");
+                currentSlideIndex = (currentSlideIndex + 1) % slideImages.length;
+                updateSlideImage();
+            }, SLIDE_INTERVAL);
+        }
+
+        function stopScreensaver() {
+            if (!isScreensaverActive) return;
+
+            console.log("Screensaver stopped");
+            isScreensaverActive = false;
+
+            const ssEl = document.getElementById('screensaver');
+            ssEl.classList.remove('active'); // Fade out
+
+            // Clear interval immediately
+            if (slideInterval) clearInterval(slideInterval);
+            slideInterval = null;
+
+            // Wait for fade out to hide
+            setTimeout(() => {
+                ssEl.style.display = 'none';
+            }, 1000);
+
+            resetIdleTimer();
+        }
+
+        function updateSlideImage() {
+            const imgElement = document.getElementById('ss-image');
+            if (!imgElement) return;
+
+            // 次に表示する画像のURLを取得
+            const nextImageUrl = slideImages[currentSlideIndex];
+
+            // ★ここが重要: 隠し画像（Imageオブジェクト）を作って裏で読み込む
+            const tempImage = new Image();
+            tempImage.src = nextImageUrl;
+
+            // 読み込みが完了したら実行する処理
+            tempImage.onload = () => {
+                // 1. まず現在の画像をフェードアウト
+                imgElement.style.opacity = '0';
+
+                // 2. フェードアウトの時間（1秒）待ってからソースを差し替え
+                setTimeout(() => {
+                    imgElement.src = nextImageUrl;
+
+                    // 3. ソース差し替え後、少しだけ待ってフェードイン
+                    // (既にtempImageで読み込み済みなので、即座に綺麗に表示される)
+                    requestAnimationFrame(() => {
+                        imgElement.style.opacity = '1';
+                    });
+                }, 1000);
+            };
+
+            // 万が一、読み込みに失敗した場合の保険（エラー時はスキップ）
+            tempImage.onerror = () => {
+                console.log("Image load failed, skipping to next.");
+                // 次の画像へ進めるなどの処理（今回はコンソール表示のみでOK）
+            };
+        }
+
+        function updateScreensaverClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+            document.getElementById('ssTime').textContent = `${hours}:${minutes}`;
+            document.getElementById('ssDate').textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
+        }
 
         function refreshData() {
             google.script.run
@@ -1249,6 +1514,17 @@
                 }
             };
             window.requestAnimationFrame(step);
+        }
+
+        /**
+         * 配列をランダムにシャッフルする関数（フィッシャー–イェーツのシャッフル）
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
         }
 
         function toggleFullscreen() {
