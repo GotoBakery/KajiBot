@@ -6,6 +6,10 @@
 // Discordのユーザー名を「夫」「妻」などに統一します。
 // スクリプトプロパティ 'USER_MAPPING_JSON' に {"DiscordName": "夫"} の形式で設定してください。
 
+// --- 設定: ミルク目標値 ---
+// --- 設定: ミルク目標値 ---
+// スクリプトプロパティ 'DAILY_MILK_TARGET' から取得 (デフォルト: 800)
+
 function normalizeUser(name) {
     try {
         const props = PropertiesService.getScriptProperties();
@@ -221,7 +225,7 @@ function getDashboardData() {
     };
 }
 
-function logTaskFromWeb(rawUser, taskName) {
+function logTaskFromWeb(rawUser, taskName, memo) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('log');
     if (!sheet) return "Error: No log sheet";
 
@@ -255,10 +259,21 @@ function logTaskFromWeb(rawUser, taskName) {
     }
 
     // 記録
-    sheet.appendRow([timestamp, user, category, taskName, points]);
+    // logTaskFromWeb: memo があれば F列(index 5) に記録
+    const rowData = [timestamp, user, category, taskName, points ];
+    if (memo !== undefined && memo !== null) {
+        rowData[5] = memo; 
+    }
+    
+    sheet.appendRow(rowData);
 
     // Discordへ通知
-    sendDiscordNotification(user, taskName, points);
+    // ミルクの場合は詳細を表示
+    if (memo) {
+        sendDiscordNotification(user, `${taskName} (${memo}ml)`, points);
+    } else {
+        sendDiscordNotification(user, taskName, points);
+    }
     
     return "Success";
 }
@@ -488,6 +503,85 @@ function getPointsFromMaster(taskName) {
         }
     }
     return 0;
+}
+
+// --- Milk Tracker API ---
+function getMilkData() {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('log');
+    if (!sheet) return { timeline: [], dailyTotals: {} };
+
+    // 直近7日分取得等のロジック
+    // パフォーマンス考慮: 全件取得してフィルタリング
+    // timestamp, user, category, task, points, memo(F列)
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) return { timeline: [], dailyTotals: {} };
+
+    const rows = data.slice(1);
+    const now = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(now.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const timeZone = Session.getScriptTimeZone();
+    
+    // 抽出
+    const milkLogs = rows.filter(r => {
+        const d = new Date(r[0]);
+        // task(index 3) に "ミルク" を含む
+        const taskName = String(r[3]);
+        return taskName.includes("ミルク") && d >= sevenDaysAgo;
+    });
+
+    // 1. Timeline (Reverse order, limit 10)
+    const timeline = [];
+    const sortedLogs = milkLogs.slice().sort((a,b) => new Date(b[0]) - new Date(a[0])); // DESC
+    
+    sortedLogs.slice(0, 10).forEach(r => {
+        const d = new Date(r[0]);
+        const dateStr = Utilities.formatDate(d, timeZone, "M/d HH:mm");
+        const amount = Number(r[5]) || 0; // Column F is index 5
+        timeline.push({
+            time: dateStr,
+            rawTime: d.getTime(), // Add raw timestamp for calculation
+            user: r[1],
+            amount: amount
+        });
+    });
+
+    // 2. Daily Totals (Last 7 days)
+    const dailyTotals = {};
+    // Initialize last 7 days keys
+    for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(now.getDate() - i);
+        const k = Utilities.formatDate(d, timeZone, "yyyy/MM/dd");
+        dailyTotals[k] = 0;
+    }
+
+    milkLogs.forEach(r => {
+        const d = new Date(r[0]);
+        const k = Utilities.formatDate(d, timeZone, "yyyy/MM/dd");
+        const amount = Number(r[5]) || 0;
+        if (dailyTotals.hasOwnProperty(k)) {
+            dailyTotals[k] += amount;
+        }
+    });
+
+    // 3. Target (Configurable from Script Properties)
+    let target = 800;
+    try {
+        const props = PropertiesService.getScriptProperties();
+        const val = props.getProperty('DAILY_MILK_TARGET');
+        if (val) target = Number(val);
+    } catch (e) {
+        console.error(e);
+    }
+
+    return {
+        timeline: timeline,
+        dailyTotals: dailyTotals,
+        target: target
+    };
 }
 
 // --- コマンド登録 (変更なし) ---

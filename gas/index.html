@@ -406,11 +406,11 @@
         }
 
         .fullscreen-fab {
-            position: absolute;
+            position: fixed;
             bottom: 24px;
             right: 24px;
-            width: 48px;
-            height: 48px;
+            width: 56px;
+            height: 56px;
             border-radius: 50%;
             background: var(--card-bg);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -474,6 +474,234 @@
             gap: 12px;
             justify-content: center;
         }
+
+        /* --- Milk Tracker UI --- */
+        #milkModal {
+            display: none;
+            /* Flex when active */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .milk-input-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .milk-input {
+            width: 120px;
+            font-size: 3rem;
+            text-align: center;
+            border: 2px solid var(--accent-primary);
+            border-radius: var(--radius-m);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            padding: 8px;
+            font-weight: 700;
+        }
+
+        .milk-adjust-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid var(--text-secondary);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .milk-adjust-btn:active {
+            transform: scale(0.9);
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .milk-presets {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            width: 100%;
+            margin-bottom: 24px;
+        }
+
+        .preset-btn {
+            padding: 12px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-s);
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .preset-btn:active {
+            background: var(--accent-primary);
+        }
+
+        /* Slide-in Dashboard */
+        #milkDashboard {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 360px;
+            /* Adjust for tablet */
+            max-width: 90vw;
+            height: 100%;
+            background: var(--bg-color);
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            box-sizing: border-box;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #milkDashboard.open {
+            transform: translateX(0);
+        }
+
+        .dashboard-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+            /* Below Dashboard (2000) */
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .dashboard-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .dashboard-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .close-dashboard-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .close-dashboard-btn:active {
+            background: var(--status-danger);
+            border-color: var(--status-danger);
+        }
+
+        .dashboard-section {
+            margin-bottom: 24px;
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 4px;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px 16px;
+            border-radius: var(--radius-s);
+        }
+
+        .history-time {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+        }
+
+        .history-amount {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .milk-fab {
+            position: fixed;
+            bottom: 96px;
+            /* Stacked above fullscreen button */
+            right: 24px;
+            left: auto;
+            /* Left side for accessibility or to not overlap check mark? Or align with chart? */
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            /* Subtle */
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .milk-fab:active {
+            transform: scale(0.95);
+            background: var(--accent-primary);
+        }
+
 
         .modal-btn {
             flex: 1;
@@ -732,6 +960,64 @@
             <div class="modal-actions">
                 <button class="modal-btn btn-cancel" onclick="resolveModal(false)">CANCEL</button>
                 <button class="modal-btn btn-ok" onclick="resolveModal(true)">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Milk Floating Button -->
+    <div class="milk-fab" onclick="toggleMilkDashboard(true)">🍼</div>
+
+    <!-- Milk Input Modal -->
+    <div id="milkModalOverlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box"
+            style="width: 90%; max-width: 400px; padding: 24px; display: flex; flex-direction: column; align-items: center;">
+            <h3 class="modal-title" style="margin: 0 0 20px 0;">🍼 ミルク記録</h3>
+
+            <div style="display: flex; flex-direction: column; align-items: center; width:100%;">
+                <div class="milk-input-container">
+                    <button class="milk-adjust-btn" onclick="adjustMilk(-10)">-10</button>
+                    <input type="number" id="milkInput" class="milk-input" value="100" step="10">
+                    <button class="milk-adjust-btn" onclick="adjustMilk(10)">+10</button>
+                    <div style="font-size: 1.2rem; font-weight: bold;">ml</div>
+                </div>
+
+                <div class="milk-presets">
+                    <button class="preset-btn" onclick="setMilk(80)">80</button>
+                    <button class="preset-btn" onclick="setMilk(100)">100</button>
+                    <button class="preset-btn" onclick="setMilk(120)">120</button>
+                    <button class="preset-btn" onclick="setMilk(160)">160</button>
+                    <button class="preset-btn" onclick="setMilk(200)">200</button>
+                </div>
+
+                <div class="modal-actions" style="width: 100%; gap: 12px;">
+                    <button class="modal-btn btn-cancel" onclick="closeMilkModal()">CANCEL</button>
+                    <button class="modal-btn btn-ok" onclick="submitMilkLog()">記録する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Milk Dashboard (Slide-in) -->
+    <div id="dashboardOverlay" class="dashboard-overlay" onclick="toggleMilkDashboard(false)"></div>
+    <div id="milkDashboard">
+        <div class="dashboard-header">
+            <div class="dashboard-title">🍼 ミルク記録</div>
+            <button class="close-dashboard-btn" onclick="toggleMilkDashboard(false)">
+                &times;
+            </button>
+        </div>
+
+        <div class="dashboard-section" style="flex: 0 0 250px;">
+            <div class="section-title">日別トータル (直近7日)</div>
+            <div style="width: 100%; height: 200px; position: relative;">
+                <canvas id="milkChart"></canvas>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <div class="section-title">直近のスケジュール</div>
+            <div id="milkHistoryList" class="history-list">
+                <!-- Items go here -->
             </div>
         </div>
     </div>
@@ -1235,6 +1521,14 @@
             await new Promise(r => setTimeout(r, 150));
 
             // 3. Show Modal (non-blocking)
+            // --- Intercept Milk Task ---
+            if (taskName.includes("ミルク")) {
+                showMilkModal(taskName, points);
+                btnElement.classList.remove('active-anim');
+                return;
+            }
+            // ---------------------------
+
             let msg = `${currentUser} として記録します。\n\n${taskName} (${points} pt)`;
             if (String(points) === 'RESET') {
                 msg = "負けている分の差分を加算して\n清算（同点に）しますか？";
@@ -1533,6 +1827,189 @@
             } else {
                 if (document.exitFullscreen) document.exitFullscreen();
             }
+        }
+        // --- Milk Tracker Logic ---
+        let currentMilkTask = { name: "", points: 0 };
+        let milkChartInstance = null;
+
+        function showMilkModal(taskName, points) {
+            currentMilkTask = { name: taskName, points: points };
+            // Load last amount if possible? For now default 100
+            // Ideally we could fetch last log, but that's async. Default 100 or keep previous input.
+
+            const overlay = document.getElementById('milkModalOverlay');
+            overlay.style.display = 'flex';
+            // Force reflow
+            void overlay.offsetWidth;
+            overlay.classList.add('show'); // Assuming modal-overlay has transition logic if any, or just display flex
+        }
+
+        function closeMilkModal() {
+            const overlay = document.getElementById('milkModalOverlay');
+            overlay.style.display = 'none';
+        }
+
+        function adjustMilk(delta) {
+            const input = document.getElementById('milkInput');
+            let val = parseInt(input.value) || 0;
+            val += delta;
+            if (val < 0) val = 0;
+            input.value = val;
+        }
+
+        function setMilk(amount) {
+            document.getElementById('milkInput').value = amount;
+        }
+
+        function submitMilkLog() {
+            const amount = document.getElementById('milkInput').value;
+            if (!amount) return;
+
+            closeMilkModal();
+            document.getElementById('loading').style.display = 'flex';
+
+            google.script.run
+                .withSuccessHandler(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    refreshData();
+                    showToast(`ミルク (${amount}ml) を記録しました`, true);
+
+                    // Auto-open dashboard
+                    setTimeout(() => toggleMilkDashboard(true), 500);
+                })
+                .withFailureHandler((e) => {
+                    document.getElementById('loading').style.display = 'none';
+                    alert("Error: " + e);
+                })
+                .logTaskFromWeb(currentUser, currentMilkTask.name, amount);
+        }
+
+        function toggleMilkDashboard(open) {
+            const dashboard = document.getElementById('milkDashboard');
+            const overlay = document.getElementById('dashboardOverlay');
+            if (open) {
+                dashboard.classList.add('open');
+                overlay.classList.add('show');
+                updateMilkDashboard();
+            } else {
+                dashboard.classList.remove('open');
+                overlay.classList.remove('show');
+            }
+        }
+
+        function updateMilkDashboard() {
+            // Load data
+            google.script.run
+                .withSuccessHandler((data) => {
+                    renderMilkDashboard(data);
+                })
+                .withFailureHandler(e => console.error(e))
+                .getMilkData();
+        }
+
+        function renderMilkDashboard(data) {
+            // 1. History
+            const listEl = document.getElementById('milkHistoryList');
+            listEl.innerHTML = "";
+
+            if (data.timeline && data.timeline.length > 0) {
+                const now = new Date().getTime();
+                data.timeline.forEach(item => {
+                    // Calculate elapsed time if rawTime exists
+                    let elapsedStr = "";
+                    if (item.rawTime) {
+                        const diffMin = Math.floor((now - item.rawTime) / 60000);
+                        if (diffMin < 60) {
+                            elapsedStr = `${diffMin}分前`;
+                        } else {
+                            const diffHour = Math.floor(diffMin / 60);
+                            const remMin = diffMin % 60;
+                            elapsedStr = `${diffHour}時間${remMin}分前`;
+                        }
+                    }
+
+                    const row = document.createElement('div');
+                    row.className = 'history-item';
+                    row.innerHTML = `
+                        <div style="display:flex; flex-direction:column;">
+                            <div style="display:flex; align-items:baseline; gap:8px;">
+                                <span class="history-time" style="font-size:1.4rem; font-weight:700; color:#fff; opacity:1;">${item.time.split(' ')[1] || item.time}</span>
+                                <span style="font-size:0.8rem; color:var(--accent-primary); font-weight:600;">${elapsedStr}</span>
+                            </div>
+                            <div style="font-size:0.75rem; opacity:0.6; margin-top:2px;">
+                                <span>${item.time.split(' ')[0] || ''}</span> • <span>${item.user}</span>
+                            </div>
+                        </div>
+                        <div class="history-amount">${item.amount} ml</div>
+                    `;
+                    listEl.appendChild(row);
+                });
+            } else {
+                listEl.innerHTML = `<div style="padding:16px; opacity:0.6; text-align:center;">データがありません</div>`;
+            }
+
+            // 2. Chart
+            const ctx = document.getElementById('milkChart').getContext('2d');
+            const dates = Object.keys(data.dailyTotals).sort().slice(-7); // Ensure order
+            const values = dates.map(d => data.dailyTotals[d]);
+
+            // Format dates for label (e.g. 1/12)
+            const labels = dates.map(d => d.substring(5)); // yyyy/MM/dd -> MM/dd
+
+            if (milkChartInstance) {
+                milkChartInstance.destroy();
+            }
+
+            milkChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: `目標 (${data.target}ml)`,
+                            data: Array(labels.length).fill(data.target),
+                            borderColor: 'rgba(255, 255, 255, 0.3)',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
+                            order: 0
+                        },
+                        {
+                            type: 'bar',
+                            label: 'ミルク量 (ml)',
+                            data: values,
+                            backgroundColor: 'rgba(255, 146, 43, 0.6)',
+                            borderColor: 'rgba(255, 146, 43, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#888' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#888' }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: { color: '#888', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
         }
     </script>
 </body>
