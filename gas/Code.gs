@@ -284,7 +284,7 @@ function sendDiscordNotification(user, taskName, points) {
     if (!webhookUrl) return;
 
     const payload = {
-        content: `🆕 **Web**: ${user} が **${taskName}** (${points}pt) を完了しました！`
+        content: `🆕 Web: ${user} が ${taskName} (${points}pt) を完了しました！`
     };
 
     UrlFetchApp.fetch(webhookUrl, {
@@ -389,7 +389,7 @@ function sendDiscordUndoNotification(user, taskName) {
     if (!webhookUrl) return;
 
     const payload = {
-        content: `⚠️ **${user}** が直近の記録 (**${taskName}**) を取り消しました。`
+        content: `⚠️ ${user} が直近の記録 (${taskName}) を取り消しました。`
     };
 
     UrlFetchApp.fetch(webhookUrl, {
